@@ -2,51 +2,87 @@ import fs from "fs-extra";
 import path from "path";
 import scrapeElements from "./elementScrapper.js";
 import monitorAPICalls from "./apiMonitor.js";
-import { logger } from "./logger.js";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 
-// Load environment variables from .env file
+// Load environment variables
 dotenv.config();
 
 // Resolve directory paths for ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Get output directory and URL from .env
-const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(__dirname, "../output");
-const TARGET_URL = process.env.TARGET_URL || "https://www.imdb.com";
+// Parse command-line arguments
+const args = process.argv.slice(2);
+const argUrlsFile = args.find((arg) => arg.startsWith("urlsFile="));
+const argOutput = args.find((arg) => arg.startsWith("outputDir="));
 
-const run = async () => {
-  logger.start(`Starting web inventory automation for: ${TARGET_URL}`);
+// Dynamic configuration with fallback
+const urlsFile = argUrlsFile
+  ? argUrlsFile.split("=")[1]
+  : process.env.URLS_FILE || "./urls.txt";
+const OUTPUT_DIR = path.resolve(
+  argOutput ? argOutput.split("=")[1] : process.env.OUTPUT_DIR || "./output"
+);
 
-  try {
-    logger.info("Scraping web elements...");
-    const elements = await scrapeElements(TARGET_URL);
-    logger.success(`Scraped ${elements.length} web elements.`);
+// Helper function to process each URL
+const processUrl = async (url) => {
+  console.log(`Starting web inventory automation for: ${url}`);
 
-    logger.info("Monitoring API calls...");
-    const apiCalls = await monitorAPICalls(TARGET_URL);
-    logger.success(`Captured ${apiCalls.length} API calls.`);
+  console.log("Scraping web elements...");
+  const elements = await scrapeElements(url);
 
-    logger.info("Saving results...");
-    fs.ensureDirSync(OUTPUT_DIR);
+  console.log("Monitoring API calls...");
+  const apiCalls = await monitorAPICalls(url);
 
-    await fs.writeFile(
-      path.join(OUTPUT_DIR, "elements.json"),
-      JSON.stringify(elements, null, 2)
-    );
-    await fs.writeFile(
-      path.join(OUTPUT_DIR, "apiCalls.json"),
-      JSON.stringify(apiCalls, null, 2)
-    );
+  const parentDir = path.join(
+    OUTPUT_DIR,
+    new URL(url).hostname.replace(/\./g, "_")
+  );
 
-    logger.success(`Results saved to output directory: ${OUTPUT_DIR}`);
-  } catch (error) {
-    logger.error(`Error during execution: ${error.message}`);
-  } finally {
-    logger.end("Web inventory automation completed.");
-  }
+  console.log(`Saving results to: ${parentDir}`);
+  fs.ensureDirSync(parentDir);
+
+  await fs.writeFile(
+    path.join(parentDir, "elements.json"),
+    JSON.stringify(elements, null, 2)
+  );
+  await fs.writeFile(
+    path.join(parentDir, "apiCalls.json"),
+    JSON.stringify(apiCalls, null, 2)
+  );
+
+  console.log(`Results saved for: ${url}`);
 };
 
-run().catch((error) => logger.error(`Unhandled error: ${error.message}`));
+const run = async () => {
+  console.log(`Reading URLs from: ${urlsFile}`);
+
+  if (!fs.existsSync(urlsFile)) {
+    console.error(`URLs file not found: ${urlsFile}`);
+    return;
+  }
+
+  const urls = fs
+    .readFileSync(urlsFile, "utf-8")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  if (urls.length === 0) {
+    console.error("No URLs found in the file.");
+    return;
+  }
+
+  for (const url of urls) {
+    try {
+      await processUrl(url);
+    } catch (error) {
+      console.error(`Error processing URL ${url}:`, error);
+    }
+  }
+
+  console.log("Web inventory automation completed.");
+};
+
+run().catch((error) => console.error("Error:", error));
