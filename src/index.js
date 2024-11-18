@@ -3,6 +3,7 @@ import path from "path";
 import scrapeElements from "./elementScrapper.js";
 import monitorAPICalls from "./apiMonitor.js";
 import dotenv from "dotenv";
+import { generateAnalytics } from "./analytics.js";
 import { fileURLToPath } from "url";
 
 // Load environment variables
@@ -55,6 +56,7 @@ const processUrl = async (url) => {
   console.log(`Results saved for: ${url}`);
 };
 
+// Main `run` function
 const run = async () => {
   console.log(`Reading URLs from: ${urlsFile}`);
 
@@ -83,6 +85,10 @@ const run = async () => {
   }
 
   console.log("Web inventory automation completed.");
+
+  // Generate analytics after processing all URLs
+  await generateAnalytics(OUTPUT_DIR);
 };
 
+// Run the workflow
 run().catch((error) => console.error("Error:", error));
