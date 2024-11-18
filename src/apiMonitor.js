@@ -1,9 +1,12 @@
 import puppeteer from "puppeteer";
+import { logger } from "./logger.js";
 
 // Custom delay function
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const monitorAPICalls = async (url) => {
+  logger.start("Starting API call monitoring...");
+
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
 
@@ -28,16 +31,20 @@ const monitorAPICalls = async (url) => {
     }
   });
 
-  console.log("Navigating to the URL...");
-  await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
+  try {
+    logger.info(`Navigating to the URL: ${url}`);
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
-  // Allow extra time for API calls
-  console.log("Waiting for dynamic API calls...");
-  await delay(5000);
+    // Allow extra time for API calls
+    logger.info("Waiting for dynamic API calls...");
+    await delay(5000);
+  } catch (error) {
+    logger.error(`Error during API monitoring: ${error.message}`);
+  } finally {
+    await browser.close();
+    logger.end("API call monitoring completed.");
+  }
 
-  console.log(`Captured API calls: ${apiCalls.length}`);
-
-  await browser.close();
   return apiCalls;
 };
 
