@@ -4,6 +4,8 @@ import scrapeElements from "./elementScrapper.js";
 import monitorAPICalls from "./apiMonitor.js";
 import dotenv from "dotenv";
 import { generateAnalytics } from "./analytics.js";
+import pLimit from "p-limit";
+import { logger } from "./logger.js"; // Import your logger
 import { fileURLToPath } from "url";
 
 // Load environment variables
@@ -26,42 +28,57 @@ const OUTPUT_DIR = path.resolve(
   argOutput ? argOutput.split("=")[1] : process.env.OUTPUT_DIR || "./output"
 );
 
+// Concurrency limit for parallel processing
+const CONCURRENCY_LIMIT = parseInt(process.env.CONCURRENCY_LIMIT, 10) || 3;
+const limit = pLimit(CONCURRENCY_LIMIT);
+
+// Tracking active tasks for concurrency monitoring
+let activeTasks = 0;
+
 // Helper function to process each URL
 const processUrl = async (url) => {
-  console.log(`Starting web inventory automation for: ${url}`);
+  activeTasks++; // Increment active tasks
+  logger.concurrency(`Starting task for: ${url}`, activeTasks);
 
-  console.log("Scraping web elements...");
-  const elements = await scrapeElements(url);
+  try {
+    logger.info(`Scraping web elements for: ${url}`);
+    const elements = await scrapeElements(url);
 
-  console.log("Monitoring API calls...");
-  const apiCalls = await monitorAPICalls(url);
+    logger.info(`Monitoring API calls for: ${url}`);
+    const apiCalls = await monitorAPICalls(url);
 
-  const parentDir = path.join(
-    OUTPUT_DIR,
-    new URL(url).hostname.replace(/\./g, "_")
-  );
+    const parentDir = path.join(
+      OUTPUT_DIR,
+      new URL(url).hostname.replace(/\./g, "_")
+    );
 
-  console.log(`Saving results to: ${parentDir}`);
-  fs.ensureDirSync(parentDir);
+    logger.info(`Saving results to: ${parentDir}`);
+    fs.ensureDirSync(parentDir);
 
-  await fs.writeFile(
-    path.join(parentDir, "elements.json"),
-    JSON.stringify(elements, null, 2)
-  );
-  await fs.writeFile(
-    path.join(parentDir, "apiCalls.json"),
-    JSON.stringify(apiCalls, null, 2)
-  );
+    await fs.writeFile(
+      path.join(parentDir, "elements.json"),
+      JSON.stringify(elements, null, 2)
+    );
+    await fs.writeFile(
+      path.join(parentDir, "apiCalls.json"),
+      JSON.stringify(apiCalls, null, 2)
+    );
 
-  console.log(`Results saved for: ${url}`);
+    logger.success(`Results saved for: ${url}`);
+  } catch (error) {
+    logger.error(`Error processing URL ${url}: ${error.message}`);
+  } finally {
+    activeTasks--; // Decrement active tasks
+    logger.concurrency(`Completed task for: ${url}`, activeTasks);
+  }
 };
 
 // Main `run` function
 const run = async () => {
-  console.log(`Reading URLs from: ${urlsFile}`);
+  logger.start(`Reading URLs from: ${urlsFile}`);
 
   if (!fs.existsSync(urlsFile)) {
-    console.error(`URLs file not found: ${urlsFile}`);
+    logger.error(`URLs file not found: ${urlsFile}`);
     return;
   }
 
@@ -72,23 +89,26 @@ const run = async () => {
     .filter((line) => line.length > 0);
 
   if (urls.length === 0) {
-    console.error("No URLs found in the file.");
+    logger.error("No URLs found in the file.");
     return;
   }
 
-  for (const url of urls) {
-    try {
-      await processUrl(url);
-    } catch (error) {
-      console.error(`Error processing URL ${url}:`, error);
-    }
-  }
+  // Process URLs in parallel with a concurrency limit
+  const tasks = urls.map((url) =>
+    limit(() =>
+      processUrl(url).catch((error) =>
+        logger.error(`Error processing URL ${url}: ${error.message}`)
+      )
+    )
+  );
 
-  console.log("Web inventory automation completed.");
+  await Promise.all(tasks);
+
+  logger.end("Web inventory automation completed.");
 
   // Generate analytics after processing all URLs
   await generateAnalytics(OUTPUT_DIR);
 };
 
 // Run the workflow
-run().catch((error) => console.error("Error:", error));
+run().catch((error) => logger.error(`Error: ${error.message}`));

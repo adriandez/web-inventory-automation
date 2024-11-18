@@ -85,6 +85,11 @@ export const logger = {
   attempting: (message) => logger.log("ATTEMPT", `Attempting: ${message}`),
   success: (message) => logger.log("SUCCESS", `Success: ${message}`),
 
+  // New method for concurrency logging
+  concurrency: (message, activeTasks) => {
+    logger.log("INFO", `${message} | Active tasks: ${activeTasks}`);
+  },
+
   // Color codes for different log levels
   getColor: (level) => {
     switch (level) {
