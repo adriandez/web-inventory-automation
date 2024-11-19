@@ -9,7 +9,7 @@ const scrapeElements = async (url, outputDir) => {
   logger.start("Starting element scraping...");
 
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: process.env.HEADLESS === "true", // Dynamically set headless mode
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
   const page = await browser.newPage();

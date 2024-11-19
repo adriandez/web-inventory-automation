@@ -9,10 +9,11 @@ Web Inventory Automation is a Node.js tool designed to automate the scraping of 
 
 - **Web Element Scraping**: Extracts tag names, IDs, classes, and attributes from all elements on a webpage.
 - **API Monitoring**: Captures XHR, fetch, and websocket requests with details like URL, method, headers, and more.
-- **Dynamic Input/Output**: Accepts URLs from a `.txt` file or command-line arguments. Outputs are saved in directories unique to each URL.
+- **Dynamic Browser Options**: Allows running in headless or headful mode, configurable via environment variables or command-line arguments.
+- **Retry Mechanism**: Automatically retries failed URL processing with configurable retry limits and delays.
+- **Parallel Processing**: Handles large URL lists efficiently with configurable concurrency limits.
 - **Analytics and Reports**: Generates JSON analytics, visual charts, and PDF summaries for the extracted data.
 - **Environment Configuration**: Easily configurable with a `.env` file for default settings.
-- **Concurrency Management**: Processes multiple URLs concurrently with a configurable limit.
 - **Detailed Logging**: Logs execution details with color-coded console messages and persistent file-based logs.
 - **Error Handling**: Gracefully handles errors during scraping or monitoring.
 
@@ -39,17 +40,19 @@ Create a `.env` file in the root directory:
 URLS_FILE=./urls.txt
 OUTPUT_DIR=./output
 CONCURRENCY_LIMIT=3
+HEADLESS=true
 ```
 
 - `URLS_FILE`: Path to the file containing URLs (one URL per line).
 - `OUTPUT_DIR`: Directory for saving output files.
 - `CONCURRENCY_LIMIT`: Number of URLs to process concurrently.
+- `HEADLESS`: Set to `true` for headless mode or `false` for headful mode.
 
 ## Usage
 
 ### Run with Environment Configuration
 
-If `URLS_FILE` and `OUTPUT_DIR` are defined in `.env`:
+If `URLS_FILE`, `OUTPUT_DIR`, and `HEADLESS` are defined in `.env`:
 
 ```bash
 node src/index.js
@@ -60,7 +63,7 @@ node src/index.js
 Override `.env` values by specifying arguments:
 
 ```bash
-node src/index.js urlsFile=custom-urls.txt outputDir=./custom-output
+node src/index.js urlsFile=custom-urls.txt outputDir=./custom-output headless=false
 ```
 
 ### Input File
@@ -162,10 +165,8 @@ This project is licensed under the ISC License.
 
 ## Roadmap
 
-- **Dynamic Browser Options**: Support headless or headful mode selection.
-- **Retry Mechanism**: Handle failed URL processing with retries.
 - **Enhanced Reports**: Include more analytics and detailed insights.
-- **Parallel Processing**: Optimize performance for large URL lists.
+- **Accessibility Analysis**: Add features for analyzing accessibility metrics.
 - **Unit Tests**: Add comprehensive test coverage for all modules.
 
 ## Author

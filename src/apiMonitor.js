@@ -7,7 +7,10 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const monitorAPICalls = async (url) => {
   logger.start("Starting API call monitoring...");
 
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: process.env.HEADLESS === "true", // Dynamically set headless mode
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
   const page = await browser.newPage();
 
   // Set headers and User-Agent
