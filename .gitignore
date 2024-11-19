@@ -132,10 +132,12 @@ dist
 output/
 
 urls.txt
+context.txt
 input.txt
 output.txt
 brain
 brainPlease
+brainSuggestions
 
 processfiles.js
 
