@@ -10,6 +10,15 @@ import { logger } from "./logger.js";
 // Load environment variables
 dotenv.config();
 
+// Validate required environment variables
+const requiredEnvVars = ["URLS_FILE", "OUTPUT_DIR", "CONCURRENCY_LIMIT"];
+requiredEnvVars.forEach((envVar) => {
+  if (!process.env[envVar]) {
+    logger.error(`Missing required environment variable: ${envVar}`);
+    process.exit(1);
+  }
+});
+
 // Parse command-line arguments
 const args = process.argv.slice(2);
 const argUrlsFile = args.find((arg) => arg.startsWith("urlsFile="));
@@ -27,9 +36,13 @@ const outputDir = path.resolve(
 const concurrencyLimit = parseInt(process.env.CONCURRENCY_LIMIT, 10) || 3;
 const limit = pLimit(concurrencyLimit);
 
+// Retry configuration
+const maxRetries = 3;
+const retryDelay = 2000; // Delay in milliseconds between retries
+
 // Helper function to process each URL
-const processUrl = async (url) => {
-  logger.start(`Processing URL: ${url}`);
+const processUrl = async (url, attempt = 1) => {
+  logger.start(`Processing URL: ${url} (Attempt ${attempt})`);
   try {
     const parentDir = path.join(
       outputDir,
@@ -45,7 +58,7 @@ const processUrl = async (url) => {
     const apiCalls = await monitorAPICalls(url);
 
     // Save results
-    logger.info(`Saving results to: ${parentDir}`);
+    logger.info(`Saving results to directory: ${parentDir}`);
     fs.ensureDirSync(parentDir);
 
     await fs.writeFile(
@@ -57,11 +70,21 @@ const processUrl = async (url) => {
       JSON.stringify(apiCalls, null, 2)
     );
 
-    logger.success(`Results saved for: ${url}`);
+    logger.success(`Results saved successfully for URL: ${url}`);
   } catch (error) {
-    logger.error(`Error processing URL ${url}: ${error.message}`);
+    if (attempt < maxRetries) {
+      logger.warn(
+        `Error processing URL: ${url} on attempt ${attempt}. Retrying in ${retryDelay}ms...\nError Details: ${error.message}`
+      );
+      await new Promise((resolve) => setTimeout(resolve, retryDelay));
+      return processUrl(url, attempt + 1);
+    } else {
+      logger.error(
+        `Failed to process URL: ${url} after ${maxRetries} attempts. Final Error: ${error.message}`
+      );
+    }
   } finally {
-    logger.end(`Completed task for: ${url}`);
+    logger.end(`Task completed for URL: ${url}`);
   }
 };
 
@@ -79,25 +102,34 @@ const run = async () => {
     .filter((line) => line.length > 0);
 
   if (urls.length === 0) {
-    logger.error("No URLs found in the file.");
+    logger.error("No URLs found in the input file.");
     return;
   }
 
   const tasks = urls.map((url) =>
     limit(() =>
       processUrl(url).catch((error) =>
-        logger.error(`Error processing URL ${url}: ${error.message}`)
+        logger.error(
+          `Unexpected error while processing URL: ${url}\n${error.message}`
+        )
       )
     )
   );
 
   await Promise.all(tasks);
 
-  logger.end("Web inventory automation completed.");
+  logger.info("Generating analytics for all processed URLs...");
+  try {
+    await generateAnalytics(outputDir);
+    logger.success("Analytics generation completed successfully.");
+  } catch (error) {
+    logger.error(`Error during analytics generation: ${error.message}`);
+  }
 
-  // Generate analytics after processing all URLs
-  await generateAnalytics(outputDir);
+  logger.end("Web inventory automation workflow completed.");
 };
 
-// Run the workflow
-run().catch((error) => logger.error(`Critical Error: ${error.message}`));
+// Execute workflow
+run().catch((error) =>
+  logger.error(`Critical Error in Workflow: ${error.message}`)
+);
