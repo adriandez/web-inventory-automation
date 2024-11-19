@@ -1,17 +1,17 @@
-import fs from "fs-extra";
-import path from "path";
-import scrapeElements from "./elementScrapper.js";
-import monitorAPICalls from "./apiMonitor.js";
-import { generateAnalytics } from "./analytics.js";
-import dotenv from "dotenv";
-import pLimit from "p-limit";
-import { logger } from "./logger.js";
+import fs from 'fs-extra';
+import path from 'path';
+import scrapeElements from './elementScrapper.js';
+import monitorAPICalls from './apiMonitor.js';
+import { generateAnalytics } from './analytics.js';
+import dotenv from 'dotenv';
+import pLimit from 'p-limit';
+import { logger } from './logger.js';
 
 // Load environment variables
 dotenv.config();
 
 // Validate required environment variables
-const requiredEnvVars = ["URLS_FILE", "OUTPUT_DIR", "CONCURRENCY_LIMIT"];
+const requiredEnvVars = ['URLS_FILE', 'OUTPUT_DIR', 'CONCURRENCY_LIMIT'];
 requiredEnvVars.forEach((envVar) => {
   if (!process.env[envVar]) {
     logger.error(`Missing required environment variable: ${envVar}`);
@@ -21,15 +21,15 @@ requiredEnvVars.forEach((envVar) => {
 
 // Parse command-line arguments
 const args = process.argv.slice(2);
-const argUrlsFile = args.find((arg) => arg.startsWith("urlsFile="));
-const argOutput = args.find((arg) => arg.startsWith("outputDir="));
+const argUrlsFile = args.find((arg) => arg.startsWith('urlsFile='));
+const argOutput = args.find((arg) => arg.startsWith('outputDir='));
 
 // Configuration with fallbacks
 const urlsFile = argUrlsFile
-  ? argUrlsFile.split("=")[1]
-  : process.env.URLS_FILE || "./urls.txt";
+  ? argUrlsFile.split('=')[1]
+  : process.env.URLS_FILE || './urls.txt';
 const outputDir = path.resolve(
-  argOutput ? argOutput.split("=")[1] : process.env.OUTPUT_DIR || "./output"
+  argOutput ? argOutput.split('=')[1] : process.env.OUTPUT_DIR || './output'
 );
 
 // Concurrency limit for parallel processing
@@ -46,7 +46,7 @@ const processUrl = async (url, attempt = 1) => {
   try {
     const parentDir = path.join(
       outputDir,
-      new URL(url).hostname.replace(/\./g, "_")
+      new URL(url).hostname.replace(/\./g, '_')
     );
 
     // Scrape elements
@@ -62,11 +62,11 @@ const processUrl = async (url, attempt = 1) => {
     fs.ensureDirSync(parentDir);
 
     await fs.writeFile(
-      path.join(parentDir, "elements.json"),
+      path.join(parentDir, 'elements.json'),
       JSON.stringify(elements, null, 2)
     );
     await fs.writeFile(
-      path.join(parentDir, "apiCalls.json"),
+      path.join(parentDir, 'apiCalls.json'),
       JSON.stringify(apiCalls, null, 2)
     );
 
@@ -96,13 +96,13 @@ const run = async () => {
   }
 
   const urls = fs
-    .readFileSync(urlsFile, "utf-8")
-    .split("\n")
+    .readFileSync(urlsFile, 'utf-8')
+    .split('\n')
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
   if (urls.length === 0) {
-    logger.error("No URLs found in the input file.");
+    logger.error('No URLs found in the input file.');
     return;
   }
 
@@ -118,15 +118,15 @@ const run = async () => {
 
   await Promise.all(tasks);
 
-  logger.info("Generating analytics for all processed URLs...");
+  logger.info('Generating analytics for all processed URLs...');
   try {
     await generateAnalytics(outputDir);
-    logger.success("Analytics generation completed successfully.");
+    logger.success('Analytics generation completed successfully.');
   } catch (error) {
     logger.error(`Error during analytics generation: ${error.message}`);
   }
 
-  logger.end("Web inventory automation workflow completed.");
+  logger.end('Web inventory automation workflow completed.');
 };
 
 // Execute workflow

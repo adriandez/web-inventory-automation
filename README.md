@@ -1,4 +1,3 @@
-
 # Web Inventory Automation
 
 ## Overview

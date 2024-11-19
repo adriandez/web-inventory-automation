@@ -1,15 +1,15 @@
-import fs from "fs-extra";
-import path from "path";
-import { createCanvas } from "canvas";
-import generatePDFSummary from "./pdfGenerator.js";
+import fs from 'fs-extra';
+import path from 'path';
+import { createCanvas } from 'canvas';
+import generatePDFSummary from './pdfGenerator.js';
 
 export const generateAnalytics = async (outputDir) => {
   const directories = await fs.readdir(outputDir);
 
   for (const dir of directories) {
     const dirPath = path.join(outputDir, dir);
-    const elementsPath = path.join(dirPath, "elements.json");
-    const apiCallsPath = path.join(dirPath, "apiCalls.json");
+    const elementsPath = path.join(dirPath, 'elements.json');
+    const apiCallsPath = path.join(dirPath, 'apiCalls.json');
 
     const analytics = {};
     const url = deriveUrlFromDir(dir); // Derive URL from directory name
@@ -30,7 +30,7 @@ export const generateAnalytics = async (outputDir) => {
         ).length,
         inlineStyles: elements.filter(
           (el) => el.attributes && el.attributes.style
-        ).length,
+        ).length
       };
     }
 
@@ -45,7 +45,7 @@ export const generateAnalytics = async (outputDir) => {
         endpoints: apiCalls.reduce((acc, call) => {
           acc[call.url] = (acc[call.url] || 0) + 1;
           return acc;
-        }, {}),
+        }, {})
       };
     }
 
@@ -53,7 +53,7 @@ export const generateAnalytics = async (outputDir) => {
     analytics.url = url;
 
     // Save analytics JSON for this URL
-    const analyticsPath = path.join(dirPath, "analytics.json");
+    const analyticsPath = path.join(dirPath, 'analytics.json');
     await fs.writeJSON(analyticsPath, analytics, { spaces: 2 });
     console.log(`Analytics generated for: ${dirPath}`);
 
@@ -64,12 +64,12 @@ export const generateAnalytics = async (outputDir) => {
     await generatePDFSummary(analytics, dirPath, visualizations);
   }
 
-  console.log("Analytics generation completed for all URLs.");
+  console.log('Analytics generation completed for all URLs.');
 };
 
 const deriveUrlFromDir = (dir) => {
   // Example: Convert directory names like "example_com" to "https://example.com"
-  return `https://${dir.replace(/_/g, ".")}`;
+  return `https://${dir.replace(/_/g, '.')}`;
 };
 
 const generateVisualizations = (analytics, dirPath) => {
@@ -79,25 +79,25 @@ const generateVisualizations = (analytics, dirPath) => {
 
   if (analytics.elements && analytics.elements.tags) {
     const tagCanvas = createCanvas(canvasWidth, canvasHeight);
-    const tagCtx = tagCanvas.getContext("2d");
+    const tagCtx = tagCanvas.getContext('2d');
 
-    createBarChart(tagCtx, "Top HTML Tags", analytics.elements.tags);
+    createBarChart(tagCtx, 'Top HTML Tags', analytics.elements.tags);
 
-    const tagsPath = path.join(dirPath, "top_tags_chart.png");
-    fs.writeFileSync(tagsPath, tagCanvas.toBuffer("image/png"));
-    console.log("Generated tag frequency bar chart:", tagsPath);
+    const tagsPath = path.join(dirPath, 'top_tags_chart.png');
+    fs.writeFileSync(tagsPath, tagCanvas.toBuffer('image/png'));
+    console.log('Generated tag frequency bar chart:', tagsPath);
     visualizations.tags = tagsPath;
   }
 
   if (analytics.apiCalls && analytics.apiCalls.methods) {
     const methodCanvas = createCanvas(canvasWidth, canvasHeight);
-    const methodCtx = methodCanvas.getContext("2d");
+    const methodCtx = methodCanvas.getContext('2d');
 
-    createPieChart(methodCtx, "API Call Methods", analytics.apiCalls.methods);
+    createPieChart(methodCtx, 'API Call Methods', analytics.apiCalls.methods);
 
-    const methodsPath = path.join(dirPath, "api_methods_chart.png");
-    fs.writeFileSync(methodsPath, methodCanvas.toBuffer("image/png"));
-    console.log("Generated API method pie chart:", methodsPath);
+    const methodsPath = path.join(dirPath, 'api_methods_chart.png');
+    fs.writeFileSync(methodsPath, methodCanvas.toBuffer('image/png'));
+    console.log('Generated API method pie chart:', methodsPath);
     visualizations.methods = methodsPath;
   }
 
@@ -108,11 +108,11 @@ const createBarChart = (ctx, title, data) => {
   const labels = Object.keys(data);
   const values = Object.values(data);
 
-  ctx.fillStyle = "#1e1e1e";
+  ctx.fillStyle = '#1e1e1e';
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "20px Arial";
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '20px Arial';
   ctx.fillText(title, 10, 30);
 
   const barWidth = 50;
@@ -129,7 +129,7 @@ const createBarChart = (ctx, title, data) => {
       barWidth,
       barHeight
     );
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = '#ffffff';
     ctx.fillText(labels[index], 50 + index * (barWidth + gap), 420);
   });
 };
@@ -138,11 +138,11 @@ const createPieChart = (ctx, title, data) => {
   const total = Object.values(data).reduce((sum, val) => sum + val, 0);
   let startAngle = 0;
 
-  ctx.fillStyle = "#1e1e1e";
+  ctx.fillStyle = '#1e1e1e';
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "20px Arial";
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '20px Arial';
   ctx.fillText(title, 10, 30);
 
   Object.entries(data).forEach(([label, value]) => {
@@ -158,7 +158,7 @@ const createPieChart = (ctx, title, data) => {
 
     startAngle += sliceAngle;
 
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = '#ffffff';
     ctx.fillText(
       `${label}: ${value}`,
       10,

@@ -1,13 +1,13 @@
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Define file and directory names based on the current file URL
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Specify the directory where log files will be stored
-const logsDir = path.join(__dirname, "logs");
+const logsDir = path.join(__dirname, 'logs');
 
 // Create the logs directory if it does not exist
 try {
@@ -15,11 +15,11 @@ try {
     fs.mkdirSync(logsDir, { recursive: true });
   }
 } catch (error) {
-  console.error("Failed to create log directory:", error);
+  console.error('Failed to create log directory:', error);
 }
 
 // Helper function to create a timestamp for filenames
-const timestamp = () => new Date().toISOString().replace(/[:.]/g, "-");
+const timestamp = () => new Date().toISOString().replace(/[:.]/g, '-');
 
 // Determine the filename for logging based on the current timestamp
 const logFile = path.join(logsDir, `app-${timestamp()}.log`);
@@ -42,13 +42,13 @@ const getCallerInfo = () => {
       if (callerFile !== currentFile) break;
     }
   } catch (error) {
-    console.error("Error getting caller info:", error);
+    console.error('Error getting caller info:', error);
   } finally {
     Error.prepareStackTrace = originalFunc;
   }
 
   // Extract the file name from the full path
-  const fileName = callerFile ? path.basename(callerFile) : "unknown";
+  const fileName = callerFile ? path.basename(callerFile) : 'unknown';
   return `${fileName}:${callerLine}`;
 };
 
@@ -70,47 +70,47 @@ export const logger = {
 
       // Write to the log file
       try {
-        fs.appendFileSync(logFile, `${formattedMessage}\n`, "utf8");
+        fs.appendFileSync(logFile, `${formattedMessage}\n`, 'utf8');
       } catch (error) {
-        console.error("Error writing to log file:", error);
+        console.error('Error writing to log file:', error);
       }
     });
   },
-  info: (message) => logger.log("INFO", message),
-  warn: (message) => logger.log("WARN", message),
-  error: (message) => logger.log("ERROR", message),
-  debug: (message) => logger.log("DEBUG", `Debugging: ${message}`),
-  start: (message) => logger.log("START", `Starting: ${message}`),
-  end: (message) => logger.log("END", `Ending: ${message}`),
-  attempting: (message) => logger.log("ATTEMPT", `Attempting: ${message}`),
-  success: (message) => logger.log("SUCCESS", `Success: ${message}`),
+  info: (message) => logger.log('INFO', message),
+  warn: (message) => logger.log('WARN', message),
+  error: (message) => logger.log('ERROR', message),
+  debug: (message) => logger.log('DEBUG', `Debugging: ${message}`),
+  start: (message) => logger.log('START', `Starting: ${message}`),
+  end: (message) => logger.log('END', `Ending: ${message}`),
+  attempting: (message) => logger.log('ATTEMPT', `Attempting: ${message}`),
+  success: (message) => logger.log('SUCCESS', `Success: ${message}`),
 
   // New method for concurrency logging
   concurrency: (message, activeTasks) => {
-    logger.log("INFO", `${message} | Active tasks: ${activeTasks}`);
+    logger.log('INFO', `${message} | Active tasks: ${activeTasks}`);
   },
 
   // Color codes for different log levels
   getColor: (level) => {
     switch (level) {
-      case "INFO":
-        return "\x1b[0m";
-      case "WARN":
-        return "\x1b[33m"; // yellow
-      case "ERROR":
-        return "\x1b[31m"; // red
-      case "DEBUG":
-        return "\x1b[34m"; // blue
-      case "START":
-        return "\x1b[35m"; // magenta
-      case "END":
-        return "\x1b[35m"; // magenta
-      case "ATTEMPT":
-        return "\x1b[36m"; // cyan
-      case "SUCCESS":
-        return "\x1b[32m"; // green
+      case 'INFO':
+        return '\x1b[0m';
+      case 'WARN':
+        return '\x1b[33m'; // yellow
+      case 'ERROR':
+        return '\x1b[31m'; // red
+      case 'DEBUG':
+        return '\x1b[34m'; // blue
+      case 'START':
+        return '\x1b[35m'; // magenta
+      case 'END':
+        return '\x1b[35m'; // magenta
+      case 'ATTEMPT':
+        return '\x1b[36m'; // cyan
+      case 'SUCCESS':
+        return '\x1b[32m'; // green
       default:
-        return "\x1b[0m"; // reset
+        return '\x1b[0m'; // reset
     }
   },
 
@@ -121,8 +121,8 @@ export const logger = {
     const lines = [];
 
     // Check if borders are required for the log level
-    if (["START", "END", "DEBUG"].includes(level)) {
-      const border = "*".repeat(fullMessage.length); // Create a border that matches the length of the full message
+    if (['START', 'END', 'DEBUG'].includes(level)) {
+      const border = '*'.repeat(fullMessage.length); // Create a border that matches the length of the full message
       lines.push(border);
       lines.push(fullMessage);
       lines.push(border);
@@ -132,5 +132,5 @@ export const logger = {
     }
 
     return lines;
-  },
+  }
 };
