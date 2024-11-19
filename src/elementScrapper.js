@@ -1,16 +1,18 @@
 import puppeteer from "puppeteer";
+import fs from "fs-extra";
+import path from "path";
 import { logger } from "./logger.js";
 
-// Custom delay function
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const scrapeElements = async (url) => {
+const scrapeElements = async (url, outputDir) => {
   logger.start("Starting element scraping...");
 
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
   const page = await browser.newPage();
-
-  // Set a custom User-Agent to avoid bot detection
   await page.setUserAgent(
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.199 Safari/537.36"
   );
@@ -21,9 +23,8 @@ const scrapeElements = async (url) => {
     logger.info(`Navigating to the URL: ${url}`);
     await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
-    // Wait for the page to fully load
     logger.info("Waiting for content to stabilize...");
-    await delay(3000);
+    await delay(5000);
 
     logger.info("Extracting elements...");
     const extractedElements = await page.evaluate(() => {
@@ -33,9 +34,9 @@ const scrapeElements = async (url) => {
           tagName: el.tagName.toLowerCase(),
           id: el.id || null,
           classes:
-            el.className && typeof el.className === "string"
-              ? el.className.split(/\s+/)
-              : [], // Safely split class names
+            typeof el.className === "string"
+              ? el.className.split(/\s+/).filter((cls) => cls.trim())
+              : [],
           attributes: Array.from(el.attributes).reduce((acc, attr) => {
             acc[attr.name] = attr.value;
             return acc;
@@ -46,6 +47,17 @@ const scrapeElements = async (url) => {
     });
 
     elements.push(...extractedElements);
+    logger.info(`Extracted ${elements.length} elements from the page.`);
+
+    // Save results
+    const dirName = new URL(url).hostname.replace(/\./g, "_");
+    const parentDir = path.join(outputDir, dirName);
+    fs.ensureDirSync(parentDir);
+
+    const elementsPath = path.join(parentDir, "elements.json");
+    await fs.writeFile(elementsPath, JSON.stringify(elements, null, 2), "utf8");
+
+    logger.success(`Data successfully saved to ${elementsPath}`);
   } catch (error) {
     logger.error(`Error during element scraping: ${error.message}`);
   } finally {

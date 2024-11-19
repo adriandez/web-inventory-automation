@@ -132,3 +132,12 @@ dist
 output/
 
 urls.txt
+input.txt
+output.txt
+brain
+brainPlease
+
+processfiles.js
+
+previous[A-Z]*.js
+
