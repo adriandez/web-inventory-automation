@@ -2,126 +2,172 @@
 # Web Inventory Automation
 
 ## Overview
-Web Inventory Automation is a Node.js tool designed to scrape web elements and monitor API calls for a given set of URLs. The tool generates JSON outputs for web elements and API calls, organized into unique directories based on the target URLs.
+
+Web Inventory Automation is a Node.js tool designed to automate the scraping of web elements and monitoring of API calls for specified URLs. It generates JSON outputs and detailed analytics, including visualizations and PDF summaries, organized into unique directories for each target URL.
 
 ## Features
+
 - **Web Element Scraping**: Extracts tag names, IDs, classes, and attributes from all elements on a webpage.
-- **API Monitoring**: Captures XHR, fetch, and websocket requests with details like URL, method, and headers.
-- **Dynamic Input/Output**: Accepts URLs from a `.txt` file or command-line arguments. Outputs are stored in directories unique to each URL.
-- **Environment Configuration**: Uses a `.env` file for default configurations.
-- **Robust Logging**: Implements a detailed logger with color-coded console messages and file-based logs.
+- **API Monitoring**: Captures XHR, fetch, and websocket requests with details like URL, method, headers, and more.
+- **Dynamic Input/Output**: Accepts URLs from a `.txt` file or command-line arguments. Outputs are saved in directories unique to each URL.
+- **Analytics and Reports**: Generates JSON analytics, visual charts, and PDF summaries for the extracted data.
+- **Environment Configuration**: Easily configurable with a `.env` file for default settings.
+- **Concurrency Management**: Processes multiple URLs concurrently with a configurable limit.
+- **Detailed Logging**: Logs execution details with color-coded console messages and persistent file-based logs.
 - **Error Handling**: Gracefully handles errors during scraping or monitoring.
 
 ## Installation
 
 ### Clone the Repository
+
 ```bash
 git clone https://github.com/adriandez/web-inventory-automation.git
 cd web-inventory-automation
 ```
 
 ### Install Dependencies
+
 ```bash
 npm install
 ```
 
 ### Setup Environment Variables
+
 Create a `.env` file in the root directory:
+
 ```env
 URLS_FILE=./urls.txt
 OUTPUT_DIR=./output
+CONCURRENCY_LIMIT=3
 ```
+
 - `URLS_FILE`: Path to the file containing URLs (one URL per line).
 - `OUTPUT_DIR`: Directory for saving output files.
+- `CONCURRENCY_LIMIT`: Number of URLs to process concurrently.
 
 ## Usage
 
 ### Run with Environment Configuration
+
 If `URLS_FILE` and `OUTPUT_DIR` are defined in `.env`:
+
 ```bash
 node src/index.js
 ```
 
 ### Run with Command-Line Arguments
+
 Override `.env` values by specifying arguments:
+
 ```bash
 node src/index.js urlsFile=custom-urls.txt outputDir=./custom-output
 ```
 
 ### Input File
+
 The `urls.txt` file must contain one URL per line:
+
 ```plaintext
 https://www.example.com
 https://another-example.com
 ```
 
-## Outputs
+### Outputs
 
-### Output Directory
-Outputs are stored in a directory named after the URL's hostname (e.g., `www_example_com`):
+#### Output Directory
+
+Each URL's data is saved in a directory named after its hostname:
+
 ```bash
 ./output/www_example_com/elements.json
 ./output/www_example_com/apiCalls.json
+./output/www_example_com/analytics.json
+./output/www_example_com/summary.pdf
 ```
 
-### File Descriptions
-- `elements.json`: Contains web elements with their tag names, IDs, classes, and attributes.
-- `apiCalls.json`: Contains captured API calls with details like URL, method, and headers.
+#### File Descriptions
+
+- **`elements.json`**: Contains details of web elements such as tag names, IDs, classes, and attributes.
+- **`apiCalls.json`**: Captures API calls with details like URL, method, and headers.
+- **`analytics.json`**: Summarizes extracted data with metrics and insights.
+- **`summary.pdf`**: A detailed PDF report with charts and highlights for each URL.
 
 ## Logging
 
-Logs are stored in the `logs` directory. Each log file is named using a timestamp (e.g., `app-2024-11-18-08-30-00.log`).
+Logs are saved in the `logs` directory. Each log file is named using a timestamp, e.g., `app-2024-11-19-08-30-00.log`.
 
 ### Log Levels
-- **INFO**: General informational messages.
-- **WARN**: Warnings during the process.
-- **ERROR**: Errors encountered during execution.
+
+- **INFO**: General information about the process.
+- **WARN**: Warnings encountered during execution.
+- **ERROR**: Errors during scraping or monitoring.
 - **DEBUG**: Detailed debug information.
-- **START/END**: Mark the beginning and completion of key tasks.
+- **START/END**: Marks the beginning and end of tasks.
 - **SUCCESS**: Indicates successful operations.
 
 ## Example Workflow
 
 ### Input File
-Create a `urls.txt` file with the following:
+
+Create a `urls.txt` file with the following content:
+
 ```plaintext
 https://www.imdb.com
 https://en.wikipedia.org/wiki/Main_Page
 ```
 
 ### Run the Tool
+
 ```bash
 node src/index.js
 ```
 
 ### Output
-Results are saved in `./output/www_imdb_com/` and `./output/en_wikipedia_org/`.
+
+Results are saved in directories like:
+
+```plaintext
+./output/www_imdb_com/
+./output/en_wikipedia_org/
+```
+
+### Analytics and Reports
+
+Check the `analytics.json` and `summary.pdf` files for insights and visualizations.
 
 ### Logs
-Check logs in the `logs/` directory for detailed execution information.
+
+Detailed logs are saved in the `logs/` directory.
 
 ## Dependencies
-- `axios`: HTTP client for external API requests (future enhancements).
-- `cheerio`: For parsing and manipulating HTML (potential integration).
+
+- `axios`: For future enhancements like API testing.
+- `canvas`: For generating visual charts.
 - `dotenv`: For environment variable management.
-- `fs-extra`: For enhanced file system operations.
-- `puppeteer`: For web scraping and browser automation.
+- `fs-extra`: For advanced file system operations.
+- `p-limit`: For managing concurrency.
+- `pdfkit`: For creating PDF reports.
+- `puppeteer`: For browser automation and web scraping.
 
 ## Contribution
+
 1. Fork the repository.
 2. Create a new branch (`feature/your-feature`).
 3. Commit your changes.
 4. Submit a pull request.
 
 ## License
+
 This project is licensed under the ISC License.
 
 ## Roadmap
-- **Dynamic Browser Options**: Support for choosing headless/headful mode via configuration.
-- **Enhanced Error Handling**: Retry mechanism for failed URL processing.
-- **Parallel Processing**: Scraping multiple URLs concurrently.
-- **Analytics**: Generate summary reports for extracted data.
-- **Unit Tests**: Add tests for individual modules.
+
+- **Dynamic Browser Options**: Support headless or headful mode selection.
+- **Retry Mechanism**: Handle failed URL processing with retries.
+- **Enhanced Reports**: Include more analytics and detailed insights.
+- **Parallel Processing**: Optimize performance for large URL lists.
+- **Unit Tests**: Add comprehensive test coverage for all modules.
 
 ## Author
+
 Built with ❤️ by AEZG.

@@ -141,3 +141,5 @@ processfiles.js
 
 previous[A-Z]*.js
 
+previous/
+trash/
