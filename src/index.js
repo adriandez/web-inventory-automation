@@ -6,42 +6,23 @@ import { generateAnalytics } from './analytics.js';
 import dotenv from 'dotenv';
 import pLimit from 'p-limit';
 import { logger } from './logger.js';
+import { login } from './login.js';
 
-// Load environment variables
 dotenv.config();
 
-// Validate required environment variables
-const requiredEnvVars = ['URLS_FILE', 'OUTPUT_DIR', 'CONCURRENCY_LIMIT'];
-requiredEnvVars.forEach((envVar) => {
-  if (!process.env[envVar]) {
-    logger.error(`Missing required environment variable: ${envVar}`);
-    process.exit(1);
-  }
-});
+const requiresLogin = process.env.REQUIRES_LOGIN === 'true';
+const loginUrl = process.env.LOGIN_URL;
+const credentials = {
+  username: process.env.USERNAME,
+  password: process.env.PASSWORD
+};
 
-// Parse command-line arguments
-const args = process.argv.slice(2);
-const argUrlsFile = args.find((arg) => arg.startsWith('urlsFile='));
-const argOutput = args.find((arg) => arg.startsWith('outputDir='));
-
-// Configuration with fallbacks
-const urlsFile = argUrlsFile
-  ? argUrlsFile.split('=')[1]
-  : process.env.URLS_FILE || './urls.txt';
-const outputDir = path.resolve(
-  argOutput ? argOutput.split('=')[1] : process.env.OUTPUT_DIR || './output'
-);
-
-// Concurrency limit for parallel processing
+const urlsFile = process.env.URLS_FILE || './urls.txt';
+const outputDir = path.resolve(process.env.OUTPUT_DIR || './output');
 const concurrencyLimit = parseInt(process.env.CONCURRENCY_LIMIT, 10) || 3;
 const limit = pLimit(concurrencyLimit);
 
-// Retry configuration
-const maxRetries = 3;
-const retryDelay = 2000; // Delay in milliseconds between retries
-
-// Helper function to process each URL
-const processUrl = async (url, attempt = 1) => {
+const processUrl = async (url, page, attempt = 1) => {
   logger.start(`Processing URL: ${url} (Attempt ${attempt})`);
   try {
     const parentDir = path.join(
@@ -49,15 +30,12 @@ const processUrl = async (url, attempt = 1) => {
       new URL(url).hostname.replace(/\./g, '_')
     );
 
-    // Scrape elements
     logger.info(`Scraping web elements for: ${url}`);
-    const elements = await scrapeElements(url, outputDir);
+    const elements = await scrapeElements(url, outputDir, page);
 
-    // Monitor API calls
     logger.info(`Monitoring API calls for: ${url}`);
-    const apiCalls = await monitorAPICalls(url);
+    const apiCalls = await monitorAPICalls(url, page);
 
-    // Save results
     logger.info(`Saving results to directory: ${parentDir}`);
     fs.ensureDirSync(parentDir);
 
@@ -72,23 +50,20 @@ const processUrl = async (url, attempt = 1) => {
 
     logger.success(`Results saved successfully for URL: ${url}`);
   } catch (error) {
-    if (attempt < maxRetries) {
+    if (attempt < 3) {
       logger.warn(
-        `Error processing URL: ${url} on attempt ${attempt}. Retrying in ${retryDelay}ms...\nError Details: ${error.message}`
+        `Error processing URL: ${url} on attempt ${attempt}. Retrying...`
       );
-      await new Promise((resolve) => setTimeout(resolve, retryDelay));
-      return processUrl(url, attempt + 1);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      return processUrl(url, page, attempt + 1);
     } else {
-      logger.error(
-        `Failed to process URL: ${url} after ${maxRetries} attempts. Final Error: ${error.message}`
-      );
+      logger.error(`Failed to process URL: ${url}. Error: ${error.message}`);
     }
   } finally {
     logger.end(`Task completed for URL: ${url}`);
   }
 };
 
-// Main function
 const run = async () => {
   if (!fs.existsSync(urlsFile)) {
     logger.error(`URLs file not found: ${urlsFile}`);
@@ -106,30 +81,45 @@ const run = async () => {
     return;
   }
 
+  let browser, page;
+
+  if (requiresLogin) {
+    logger.info('Starting login process...');
+    try {
+      ({ browser, page } = await login(loginUrl, credentials));
+    } catch (error) {
+      logger.error('Failed to log in. Exiting process.');
+      return;
+    }
+  } else {
+    logger.info('Skipping login...');
+    browser = await puppeteer.launch({
+      headless: process.env.HEADLESS === 'true',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    page = await browser.newPage();
+  }
+
   const tasks = urls.map((url) =>
     limit(() =>
-      processUrl(url).catch((error) =>
-        logger.error(
-          `Unexpected error while processing URL: ${url}\n${error.message}`
-        )
+      processUrl(url, page).catch((error) =>
+        logger.error(`Unexpected error: ${error.message}`)
       )
     )
   );
 
   await Promise.all(tasks);
 
-  logger.info('Generating analytics for all processed URLs...');
+  logger.info('Generating analytics...');
   try {
     await generateAnalytics(outputDir);
-    logger.success('Analytics generation completed successfully.');
+    logger.success('Analytics generated successfully.');
   } catch (error) {
     logger.error(`Error during analytics generation: ${error.message}`);
   }
 
-  logger.end('Web inventory automation workflow completed.');
+  await browser.close();
+  logger.end('Workflow completed.');
 };
 
-// Execute workflow
-run().catch((error) =>
-  logger.error(`Critical Error in Workflow: ${error.message}`)
-);
+run().catch((error) => logger.error(`Critical error: ${error.message}`));
