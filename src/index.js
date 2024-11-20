@@ -22,30 +22,52 @@ const outputDir = path.resolve(process.env.OUTPUT_DIR || './output');
 const concurrencyLimit = parseInt(process.env.CONCURRENCY_LIMIT, 10) || 3;
 const limit = pLimit(concurrencyLimit);
 
+const deriveFolderName = (url) => {
+  const parsedUrl = new URL(url);
+  const baseName = parsedUrl.hostname.replace(/\./g, '_');
+  const pathName =
+    parsedUrl.pathname.replace(/\//g, '_').substring(1) || 'home';
+  return `${baseName}_${pathName}`;
+};
+
+const takeScreenshot = async (page, folderPath) => {
+  const screenshotPath = path.join(folderPath, 'screenshot.png');
+  await page.screenshot({ path: screenshotPath, fullPage: true });
+  logger.info(`Screenshot saved: ${screenshotPath}`);
+};
+
 const processUrl = async (url, page, attempt = 1) => {
   logger.start(`Processing URL: ${url} (Attempt ${attempt})`);
+
   try {
-    const parentDir = path.join(
-      outputDir,
-      new URL(url).hostname.replace(/\./g, '_')
-    );
+    const folderName = deriveFolderName(url);
+    const folderPath = path.join(outputDir, folderName);
+    await fs.ensureDir(folderPath);
+
+    logger.info(`Monitoring API calls before navigation: ${url}`);
+    const apiCallsBefore = await monitorAPICalls(page);
+
+    logger.info(`Navigating to URL: ${url}`);
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+
+    logger.info(`Taking screenshot for: ${url}`);
+    await takeScreenshot(page, folderPath);
 
     logger.info(`Scraping web elements for: ${url}`);
-    const elements = await scrapeElements(url, outputDir, page);
+    const elements = await scrapeElements(page, url, folderPath);
 
-    logger.info(`Monitoring API calls for: ${url}`);
-    const apiCalls = await monitorAPICalls(url, page);
+    logger.info(`Monitoring API calls after navigation: ${url}`);
+    const apiCallsAfter = await monitorAPICalls(page);
 
-    logger.info(`Saving results to directory: ${parentDir}`);
-    fs.ensureDirSync(parentDir);
-
+    logger.info(`Saving results for URL: ${url}`);
     await fs.writeFile(
-      path.join(parentDir, 'elements.json'),
+      path.join(folderPath, 'elements.json'),
       JSON.stringify(elements, null, 2)
     );
+
     await fs.writeFile(
-      path.join(parentDir, 'apiCalls.json'),
-      JSON.stringify(apiCalls, null, 2)
+      path.join(folderPath, 'apiCalls.json'),
+      JSON.stringify([...apiCallsBefore, ...apiCallsAfter], null, 2)
     );
 
     logger.success(`Results saved successfully for URL: ${url}`);

@@ -1,71 +1,62 @@
-import puppeteer from 'puppeteer';
 import fs from 'fs-extra';
 import path from 'path';
 import { logger } from './logger.js';
 
+// Custom delay function
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const scrapeElements = async (url, outputDir) => {
-  logger.start('Starting element scraping...');
-
-  const browser = await puppeteer.launch({
-    headless: process.env.HEADLESS === 'true', // Dynamically set headless mode
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
-  const page = await browser.newPage();
-  await page.setUserAgent(
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.199 Safari/537.36'
-  );
-
-  const elements = [];
+const scrapeElements = async (page, url, folderPath) => {
+  logger.start(`Scraping elements from URL: ${url}`);
 
   try {
-    logger.info(`Navigating to the URL: ${url}`);
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-
-    logger.info('Waiting for content to stabilize...');
+    logger.info(`Waiting for content to stabilize on: ${url}`);
     await delay(5000);
 
-    logger.info('Extracting elements...');
-    const extractedElements = await page.evaluate(() => {
+    const elements = await page.evaluate(() => {
+      const extractAttributes = (el) =>
+        Array.from(el.attributes).reduce((acc, attr) => {
+          acc[attr.name] = attr.value;
+          return acc;
+        }, {});
+
       const elementsList = [];
-      document.querySelectorAll('*').forEach((el) => {
-        elementsList.push({
-          tagName: el.tagName.toLowerCase(),
-          id: el.id || null,
-          classes:
-            typeof el.className === 'string'
-              ? el.className.split(/\s+/).filter((cls) => cls.trim())
-              : [],
-          attributes: Array.from(el.attributes).reduce((acc, attr) => {
-            acc[attr.name] = attr.value;
-            return acc;
-          }, {})
+      const selectors = [
+        'input',
+        'button',
+        'a',
+        'input[type="checkbox"]',
+        'input[type="radio"]'
+      ];
+
+      selectors.forEach((selector) => {
+        document.querySelectorAll(selector).forEach((el) => {
+          elementsList.push({
+            tagName: el.tagName.toLowerCase(),
+            id: el.id || null,
+            classes: el.className?.split(/\s+/) || [],
+            attributes: extractAttributes(el)
+          });
         });
       });
+
       return elementsList;
     });
 
-    elements.push(...extractedElements);
-    logger.info(`Extracted ${elements.length} elements from the page.`);
+    if (elements.length === 0) {
+      logger.warn(`No elements found on the page: ${url}`);
+    }
 
-    // Save results
-    const dirName = new URL(url).hostname.replace(/\./g, '_');
-    const parentDir = path.join(outputDir, dirName);
-    fs.ensureDirSync(parentDir);
-
-    const elementsPath = path.join(parentDir, 'elements.json');
+    const elementsPath = path.join(folderPath, 'elements.json');
     await fs.writeFile(elementsPath, JSON.stringify(elements, null, 2), 'utf8');
 
-    logger.success(`Data successfully saved to ${elementsPath}`);
+    logger.success(`Elements successfully scraped and saved: ${elementsPath}`);
+    return elements;
   } catch (error) {
-    logger.error(`Error during element scraping: ${error.message}`);
-  } finally {
-    await browser.close();
-    logger.end('Element scraping completed.');
+    logger.error(
+      `Error during element scraping for URL: ${url}. Error: ${error.message}`
+    );
+    throw error;
   }
-
-  return elements;
 };
 
 export default scrapeElements;

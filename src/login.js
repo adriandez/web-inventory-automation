@@ -4,7 +4,9 @@ import { logger } from './logger.js';
 const isLoggedIn = async (page) => {
   try {
     // Check for a session-dependent element (e.g., a logout button or user profile)
-    await page.waitForSelector('#logoutButton', { timeout: 5000 });
+    await page.waitForSelector('[data-qa="logout"]', {
+      timeout: 5000
+    });
     return true; // User is already logged in
   } catch {
     return false; // Login is required
@@ -20,17 +22,37 @@ const performLogin = async (page, loginUrl, credentials) => {
   try {
     logger.start('Starting login process...');
     await page.goto(loginUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.setViewport({ width: 1920, height: 1080 }); // Set screen resolution
 
-    // Example: Replace with actual selectors and actions for your login form
-    await page.type('#username', credentials.username);
-    await page.type('#password', credentials.password);
-    await page.click('#loginButton');
+    // Ensure inputs and buttons are interactable
+    logger.debug(`[data-qa="login-username"] type ${credentials.username}`);
+    await page.waitForSelector('[data-qa="login-username"]', {
+      visible: true
+    });
+    await page.click('[data-qa="login-username"]');
+    await page.type('[data-qa="login-username"]', 'adm.auto');
 
-    // Wait for a session-dependent element to confirm login success
-    await page.waitForSelector('#logoutButton', { timeout: 60000 });
+    logger.debug(`[data-qa="login-password"] type ${credentials.password}`);
+    await page.waitForSelector('[data-qa="login-password"]', {
+      visible: true
+    });
+    await page.click('[data-qa="login-password"]');
+    await page.type('[data-qa="login-password"]', credentials.password);
+
+    const button = await page.$('[data-qa="submit"]');
+    const isClickable = await button.boundingBox();
+    console.debug('[data-qa="submit"]', isClickable);
+    await page.waitForSelector('[data-qa="submit"]', { visible: true });
+    await page.click('[data-qa="submit"]');
+
+    // Wait for login confirmation
+    await page.waitForSelector('[data-qa="logout"]', {
+      timeout: 60000
+    });
     logger.success('Login successful!');
   } catch (error) {
     logger.error(`Login failed: ${error.message}`);
+    await page.screenshot({ path: 'error-login.png' });
     throw new Error('Login process failed.');
   }
 };
