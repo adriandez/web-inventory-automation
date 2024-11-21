@@ -1,54 +1,79 @@
-import puppeteer from 'puppeteer';
+import fs from 'fs-extra';
+import path from 'path';
 import { logger } from './logger.js';
 
-// Custom delay function
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const monitorAPICalls = async (url) => {
-  logger.start('Starting API call monitoring...');
-
-  const browser = await puppeteer.launch({
-    headless: process.env.HEADLESS === 'true', // Dynamically set headless mode
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
-  const page = await browser.newPage();
-
-  // Set headers and User-Agent
-  await page.setUserAgent(
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.199 Safari/537.36'
-  );
-  await page.setExtraHTTPHeaders({
-    'Accept-Language': 'en-US,en;q=0.9'
-  });
-
+const monitorAPICalls = async (page, triggerSelector, outputPath) => {
+  const baseUrl = process.env.BASE_URL;
   const apiCalls = [];
 
-  // Capture network requests
+  if (!baseUrl) {
+    throw new Error('BASE_URL is not defined in the .env file.');
+  }
+
+  await page.setRequestInterception(true);
+
   page.on('request', (request) => {
-    if (['xhr', 'fetch', 'websocket'].includes(request.resourceType())) {
+    const requestUrl = request.url();
+    const method = request.method();
+    const resourceType = request.resourceType();
+
+    if (
+      requestUrl.startsWith(baseUrl) &&
+      ['xhr', 'fetch'].includes(resourceType)
+    ) {
       apiCalls.push({
-        url: request.url(),
-        method: request.method(),
-        headers: request.headers()
+        type: 'request',
+        url: requestUrl,
+        method,
+        resourceType,
+        headers: request.headers(),
+        postData: request.postData() || null
+      });
+    }
+
+    request.continue();
+  });
+
+  page.on('response', async (response) => {
+    const responseUrl = response.url();
+    const method = response.request().method();
+    const status = response.status();
+
+    if (responseUrl.startsWith(baseUrl)) {
+      apiCalls.push({
+        type: 'response',
+        url: responseUrl,
+        method,
+        status
       });
     }
   });
 
-  try {
-    logger.info(`Navigating to the URL: ${url}`);
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-
-    // Allow extra time for API calls
-    logger.info('Waiting for dynamic API calls...');
-    await delay(5000);
-  } catch (error) {
-    logger.error(`Error during API monitoring: ${error.message}`);
-  } finally {
-    await browser.close();
-    logger.end('API call monitoring completed.');
+  if (triggerSelector) {
+    logger.info('Clicking the trigger to start API monitoring...');
+    await page.click(triggerSelector);
   }
 
-  return apiCalls;
+  await delay(5000);
+
+  const filteredCalls = apiCalls.map((call) => ({
+    type: call.type,
+    url: call.url,
+    method: call.method,
+    ...(call.status && { status: call.status })
+  }));
+
+  const apiOutputPath = path.join(outputPath, 'api_calls.json');
+  await fs.writeFile(
+    apiOutputPath,
+    JSON.stringify(filteredCalls, null, 2),
+    'utf8'
+  );
+  logger.success(`API calls saved to: ${apiOutputPath}`);
+
+  return filteredCalls;
 };
 
 export default monitorAPICalls;

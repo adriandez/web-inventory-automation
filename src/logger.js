@@ -2,14 +2,11 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Define file and directory names based on the current file URL
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Specify the directory where log files will be stored
 const logsDir = path.join(__dirname, 'logs');
 
-// Create the logs directory if it does not exist
 try {
   if (!fs.existsSync(logsDir)) {
     fs.mkdirSync(logsDir, { recursive: true });
@@ -18,10 +15,8 @@ try {
   console.error('Failed to create log directory:', error);
 }
 
-// Helper function to create a timestamp for filenames
 const timestamp = () => new Date().toISOString().replace(/[:.]/g, '-');
 
-// Determine the filename for logging based on the current timestamp
 const logFile = path.join(logsDir, `app-${timestamp()}.log`);
 
 // Helper function to get the caller's file and line number
@@ -65,10 +60,8 @@ export const logger = {
     );
 
     formattedMessages.forEach((formattedMessage) => {
-      // Output to the console with color formatting
       console.log(`${color}${formattedMessage}\x1b[0m`);
 
-      // Write to the log file
       try {
         fs.appendFileSync(logFile, `${formattedMessage}\n`, 'utf8');
       } catch (error) {
@@ -85,12 +78,10 @@ export const logger = {
   attempting: (message) => logger.log('ATTEMPT', `Attempting: ${message}`),
   success: (message) => logger.log('SUCCESS', `Success: ${message}`),
 
-  // New method for concurrency logging
   concurrency: (message, activeTasks) => {
     logger.log('INFO', `${message} | Active tasks: ${activeTasks}`);
   },
 
-  // Color codes for different log levels
   getColor: (level) => {
     switch (level) {
       case 'INFO':
@@ -114,20 +105,17 @@ export const logger = {
     }
   },
 
-  // Dynamically adjust border length based on message length
   formatMessage: (level, timestamp, message, callerInfo) => {
     const prefix = `[${level}] [${timestamp}] - `;
     const fullMessage = `${prefix}${message} (Called from: ${callerInfo})`;
     const lines = [];
 
-    // Check if borders are required for the log level
     if (['START', 'END', 'DEBUG'].includes(level)) {
-      const border = '*'.repeat(fullMessage.length); // Create a border that matches the length of the full message
+      const border = '*'.repeat(fullMessage.length);
       lines.push(border);
       lines.push(fullMessage);
       lines.push(border);
     } else {
-      // No borders for 'ATTEMPT', 'SUCCESS', and other levels
       lines.push(fullMessage);
     }
 

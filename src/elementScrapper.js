@@ -2,7 +2,6 @@ import fs from 'fs-extra';
 import path from 'path';
 import { logger } from './logger.js';
 
-// Custom delay function
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const scrapeElements = async (page, url, folderPath) => {
@@ -13,29 +12,53 @@ const scrapeElements = async (page, url, folderPath) => {
     await delay(5000);
 
     const elements = await page.evaluate(() => {
-      const extractAttributes = (el) =>
-        Array.from(el.attributes).reduce((acc, attr) => {
-          acc[attr.name] = attr.value;
+      const extractAttributes = (el) => {
+        const attributes = Array.from(el.attributes).reduce((acc, attr) => {
+          if (attr.value.trim() !== '') {
+            acc[attr.name] = attr.value;
+          }
           return acc;
         }, {});
+        return Object.keys(attributes).length > 0 ? attributes : null;
+      };
+
+      const isVisible = (el) => {
+        const style = window.getComputedStyle(el);
+        return (
+          style.display !== 'none' &&
+          style.visibility !== 'hidden' &&
+          parseFloat(style.opacity) > 0 &&
+          el.offsetWidth > 0 &&
+          el.offsetHeight > 0
+        );
+      };
 
       const elementsList = [];
       const selectors = [
-        'input',
         'button',
-        'a',
-        'input[type="checkbox"]',
-        'input[type="radio"]'
+        'input[type="text"]',
+        'ng-select',
+        'app-right-panel > aside',
+        'app-seres-slide-toggle',
+        'app-seres-dropdown',
+        'app-seres-button',
+        'app-seres-radio',
+        'app-main-nav-subitem > div',
+        'td[data-qa]',
+        'app-selectable-cell[data-qa]'
       ];
 
       selectors.forEach((selector) => {
         document.querySelectorAll(selector).forEach((el) => {
-          elementsList.push({
-            tagName: el.tagName.toLowerCase(),
-            id: el.id || null,
-            classes: el.className?.split(/\s+/) || [],
-            attributes: extractAttributes(el)
-          });
+          const attributes = extractAttributes(el);
+
+          if (attributes && isVisible(el)) {
+            elementsList.push({
+              tagName: el.tagName.toLowerCase(),
+              id: el.id && el.id.trim() !== '' ? el.id : undefined,
+              attributes
+            });
+          }
         });
       });
 
