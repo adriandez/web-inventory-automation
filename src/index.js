@@ -22,11 +22,12 @@ const processUrl = async (
   outputFolder,
   attempt = 1
 ) => {
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1920, height: 1080 });
-
+  let page;
   try {
+    page = await browser.newPage();
+    await page.setViewport({ width: 1920, height: 1080 });
     logger.start(`Processing URL: ${targetUrl} (Attempt ${attempt})`);
+
     await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 60000 });
 
     const relativePath = targetUrl
@@ -70,22 +71,23 @@ const processUrl = async (
     }
     logger.error(`Failed to process URL ${targetUrl}: ${error.message}`);
   } finally {
-    await page.close();
+    if (page) await page.close();
     logger.end(`Task completed for URL: ${targetUrl}`);
   }
 };
 
 const run = async () => {
-  const browser = await puppeteer.launch({
-    headless: process.env.HEADLESS === 'true',
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--window-size=1920,1080'
-    ]
-  });
-
+  let browser;
   try {
+    browser = await puppeteer.launch({
+      headless: process.env.HEADLESS === 'true',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--window-size=1920,1080'
+      ]
+    });
+
     const baseUrl = process.env.BASE_URL;
     const outputFolder = process.env.OUTPUT_DIR || './output';
     const loginUrl = process.env.LOGIN_URL;
@@ -138,7 +140,7 @@ const run = async () => {
   } catch (error) {
     logger.error(`Error during execution: ${error.message}`);
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
     logger.end('Workflow completed.');
   }
 };
