@@ -143,7 +143,6 @@ Detailed logs are saved in the `logs/` directory.
 
 ## Dependencies
 
-- `axios`: For future enhancements like API testing.
 - `canvas`: For generating visual charts.
 - `dotenv`: For environment variable management.
 - `fs-extra`: For advanced file system operations.
